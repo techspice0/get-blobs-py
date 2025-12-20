@@ -52,9 +52,9 @@ export X8KEY=`<key_without_0x>`
 
 ## Generate the Cryptex1 Entangled Nonce
 
-pip3 install pycryptodome && git clone
+`pip3 install pycryptodome && git clone
 https://github.com/Cryptiiiic/aes_nonce.git && cd aes_nonce && python3
-aes_cryptex_nonce.py $X8KEY 11111111111111111111111111111111
+aes_cryptex_nonce.py $X8KEY 11111111111111111111111111111111`
 
 ------------------------------------------------------------------------
 
