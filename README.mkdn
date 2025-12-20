@@ -7,7 +7,7 @@ generate the entangled nonce required for Cryptex1 SHSH blobs.
 
 ## Requirements
 
--   Jailbroken iOS device
+-   Jailbroken iOS device (i use dopamine for ios 15-16)
 -   **A9+ SoCs only**
     -   ❌ Apple TV 4
     -   ❌ HomePod
