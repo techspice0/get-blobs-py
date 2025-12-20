@@ -3,9 +3,9 @@
 collect_blob_config.py
 -----------------------
 Saves config and manifest to blobs/<nickname>/
-Supports multiple configs named by version.
+Supports multiple configs by build number.
 Allows interactive modification of existing configs.
-Skips Cryptex fields for iOS 15 and below.
+Cryptex only for iOS 16+.
 """
 
 import os
@@ -33,11 +33,12 @@ def replace_field(text, field, new_value):
     pattern = rf"(\*\*{re.escape(field)}:\*\* `)([^`]*)"
     return re.sub(pattern, rf"\1{new_value}", text)
 
-def ios_major(version):
-    try:
-        return int(version.split(".")[0])
-    except Exception:
-        return 0
+def ios_major_from_build(build_number):
+    # Simple heuristic: first two digits usually major version
+    m = re.match(r"(\d+)", build_number)
+    if m:
+        return int(m.group(1))
+    return 0
 
 # -------------------- BuildManifest --------------------
 
@@ -101,25 +102,26 @@ def modify_existing_config():
 
     print("\nLoaded config:", config_name, "\n")
 
-    new_version = None
-    major = ios_major(
-        re.search(r"\*\*iOS Version:\*\* `([^`]*)`", contents).group(1)
-    )
+    build_number = extract_field(contents, "iOS Build")
+    major = ios_major_from_build(build_number)
+    new_build = None
 
     if yesno("Modify Generator? (y/n): "):
         generator = ask("New Generator: ")
         contents = replace_field(contents, "Generator", generator)
 
-    if yesno("Modify iOS Version? (y/n): "):
-        new_version = ask("New iOS Version: ")
-        contents = replace_field(contents, "iOS Version", new_version)
-        major = ios_major(new_version)
+    if yesno("Modify Build Number? (y/n): "):
+        new_build = ask("New iOS build number: ")
+        contents = replace_field(contents, "iOS Build", new_build)
+        major = ios_major_from_build(new_build)
 
     if yesno("Modify BuildManifest / OTA URL? (y/n): "):
         ota_url = ask("New OTA URL: ")
         contents = replace_field(contents, "OTA URL", ota_url)
-        download_buildmanifest(ota_url, device_dir)
+        device_dir_path = os.path.dirname(config_path)
+        download_buildmanifest(ota_url, device_dir_path)
 
+    # Cryptex only for iOS 16+
     if major > 15:
         if yesno("Modify Cryptex1 Nonce? (y/n): "):
             cryptex_nonce = ask("New Entangled Cryptex1 Nonce: ")
@@ -132,9 +134,10 @@ def modify_existing_config():
         contents = replace_field(contents, "Entangled Cryptex1 Nonce", "N/A")
         contents = replace_field(contents, "Cryptex1 Seed", "N/A")
 
-    if new_version:
+    # Rename file if build changed
+    if new_build:
         parts = config_name.rsplit("-", 1)
-        new_name = f"{parts[0]}-{new_version}.mkdn"
+        new_name = f"{parts[0]}-{new_build}.mkdn"
         new_path = os.path.join(device_dir, new_name)
         os.rename(config_path, new_path)
         config_path = new_path
@@ -145,6 +148,12 @@ def modify_existing_config():
 
     print("\nConfig updated successfully.")
     sys.exit(0)
+
+# -------------------- Field extractor --------------------
+
+def extract_field(contents, key):
+    m = re.search(rf"\*\*{re.escape(key)}:\*\*\s*`(.*?)`", contents)
+    return m.group(1) if m else None
 
 # -------------------- Main --------------------
 
@@ -157,9 +166,9 @@ def main():
     nickname = ask("Enter a nickname for this device (e.g., iphone-xr-black): ").replace(" ", "-")
     device = ask("Device identifier (e.g., iPhone11,8): ")
     ecid = ask("ECID: ")
-    ios_version = ask("iOS version (e.g., 17.0): ")
+    build_number = ask("Enter iOS build number (e.g., 17A5777): ")
 
-    major = ios_major(ios_version)
+    major = ios_major_from_build(build_number)
 
     device_dir = os.path.join("blobs", nickname)
     os.makedirs(device_dir, exist_ok=True)
@@ -182,7 +191,7 @@ def main():
 
     if major > 15:
         cryptex_nonce = ask("Entangled Cryptex1 Nonce: ")
-        print('PLEASE USE "0x11111111111111111111111111111111" unless you have a reason not to')
+        print('Use "0x11111111111111111111111111111111" unless needed')
         cryptex_seed = ask("Cryptex1 Seed: ")
     else:
         cryptex_nonce = "N/A"
@@ -192,7 +201,7 @@ def main():
     bbsnum = ask("Baseband SNUM: ") if cellular else "N/A"
 
     safe_ecid = ecid.replace(":", "").replace(" ", "")
-    filename = f"{device}-{safe_ecid}-{ios_version}.mkdn"
+    filename = f"{device}-{safe_ecid}-{build_number}.mkdn"
     filepath = os.path.join(device_dir, filename)
 
     contents = f"""# SHSH Blob Configuration
@@ -200,7 +209,7 @@ def main():
 - **Nickname:** `{nickname}`
 - **Device ID:** `{device}`
 - **ECID:** `{ecid}`
-- **iOS Version:** `{ios_version}`
+- **iOS Build:** `{build_number}`
 
 ## Restore Mode
 - **Restore Type:** `{restore_type}`
