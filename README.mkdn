@@ -46,7 +46,7 @@ From your computer, run:
 
 ## Export the Key
 
-export X8KEY=`<key_without_0x>`
+`export X8KEY=<key_without_0x>`
 
 ------------------------------------------------------------------------
 
