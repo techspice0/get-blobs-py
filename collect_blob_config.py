@@ -77,6 +77,7 @@ def main():
     apnonce = ask("APNonce: ")
     generator = ask("Generator: ")
     cryptex_nonce = ask("Entangled Cryptex1 Nonce: ")
+    print('PLEASE USE "0x11111111111111111111111111111111" unless you have a reason not to')
     cryptex_seed = ask("Cryptex1 Seed: ")
 
     cellular = yesno("Is this a cellular device? (y/n): ", default=False)
