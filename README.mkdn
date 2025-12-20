@@ -3,6 +3,8 @@
 This guide explains how to extract the Cryptex1-related key material and
 generate the entangled nonce required for Cryptex1 SHSH blobs.
 
+### For a8 devices please look at A8.mkdn
+
 ------------------------------------------------------------------------
 
 ## Requirements
