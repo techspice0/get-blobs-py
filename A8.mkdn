@@ -1,4 +1,4 @@
 ## For devices with the A8 SOC that support iOS 16+, it is a different process to get cryptex1 blobs as x8A4 is not compatible.
 ---
 For those devices, I created a Python script to extract that value, but the issue is that the device must be running iOS 16 or higher for it to work.
-just run `python3 A8.py`, answer the questions, and the cnch value will be your cryptex1 nonce, so you can continue to [this section with the given value](https://github.com/techspice0/get-blobs-py#export-the-key)
+just run `python3 A8.py`, answer the questions, and the cnch value will be your cryptex1 nonce, so you can continue to [this section with the given value](https://github.com/techspice0/get-blobs-py#values-to-save)
