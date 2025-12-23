@@ -2,8 +2,8 @@
 """
 save_blobs.py
 -------------
-Saves blobs to blobs/<nickname>/shsh/ using --save-path.
-Supports build number configs and skips Cryptex for iOS <= 15.
+Runs tsschecker using a config file.
+Cryptex flags used only for iOS 16+.
 """
 
 import os
@@ -11,102 +11,82 @@ import re
 import subprocess
 import sys
 
-# -------------------- Helpers --------------------
+def extract(txt, key):
+    m = re.search(rf"\*\*{re.escape(key)}:\*\*\s*`(.*?)`", txt)
+    return m.group(1) if m else ""
 
-def extract(contents, key):
-    m = re.search(rf"\*\*{re.escape(key)}:\*\*\s*`(.*?)`", contents)
-    return m.group(1) if m else None
-
-def ios_major_from_build(build_number):
-    m = re.match(r"(\d+)", build_number)
-    if m:
-        return int(m.group(1))
-    return 0
-
-def run_tsschecker(cmd):
-    print("\n=== Running tsschecker ===")
-    print("Command:", " ".join(cmd))
+def ios_major(version):
     try:
-        subprocess.run(cmd, check=False)
-    except FileNotFoundError:
-        print("ERROR: 'tsschecker' not found.")
-        sys.exit(1)
-
-# -------------------- Main --------------------
+        return int(version.split(".")[0])
+    except Exception:
+        return None
 
 def main():
-    print("=== SHSH Blob Saver ===\n")
-
-    cfg_path = input(
-        "Enter path to .mkdn config (e.g., blobs/iphone-xr-black/iPhone11,8-ECID-17A5777.mkdn): "
-    ).strip()
-
-    if not cfg_path or not os.path.exists(cfg_path):
-        print("Config file not found.")
+    cfg = input("Path to config (.mkdn): ").strip()
+    if not os.path.exists(cfg):
+        print("Config not found.")
         return
 
-    device_folder = os.path.dirname(cfg_path)
-    contents = open(cfg_path, "r").read()
+    base = os.path.dirname(cfg)
+    txt = open(cfg).read()
 
-    device = extract(contents, "Device ID")
-    ecid = extract(contents, "ECID")
-    build_number = extract(contents, "iOS Build")
-    restore_type = extract(contents, "Restore Type")
-    apnonce = extract(contents, "APNonce")
-    generator = extract(contents, "Generator")
-    cryptex_nonce = extract(contents, "Entangled Cryptex1 Nonce")
-    cryptex_seed = extract(contents, "Cryptex1 Seed")
-    cellular = extract(contents, "Cellular")
-    bbsnum = extract(contents, "Baseband SNUM")
+    device = extract(txt, "Device ID")
+    ecid = extract(txt, "ECID")
+    ios_version = extract(txt, "iOS Version")
+    build_id = extract(txt, "Build ID")
+    restore = extract(txt, "Restore Type")
+    apnonce = extract(txt, "APNonce")
+    generator = extract(txt, "Generator")
+    cryptex_seed = extract(txt, "Cryptex1 Seed")
+    cryptex_nonce = extract(txt, "Entangled Cryptex1 Nonce")
+    cellular = extract(txt, "Cellular")
+    bbsnum = extract(txt, "Baseband SNUM")
 
-    major = ios_major_from_build(build_number)
+    major = ios_major(ios_version)
+    manifest = os.path.join(base, "BuildManifest.plist")
 
-    shsh_root = os.path.join(device_folder, "shsh")
-    manifest_file = os.path.join(device_folder, "BuildManifest.plist")
-
-    modes = ["update", "erase", "ota"] if restore_type == "all" else [restore_type]
+    modes = ["update", "erase", "ota"] if restore == "all" else [restore]
 
     for mode in modes:
-        outdir = os.path.join(shsh_root, f"{build_number}-{mode}")
-        os.makedirs(outdir, exist_ok=True)
+        out = os.path.join(base, "shsh", f"{ios_version}-{mode}")
+        os.makedirs(out, exist_ok=True)
 
         cmd = [
             "tsschecker",
             "-d", device,
-            "-s",
             "-e", ecid,
-            "-g", generator,
+            "-s",
             "--apnonce", apnonce,
-            "--save-path", outdir
+            "-g", generator,
+            "--save-path", out
         ]
 
-        # Cryptex only for iOS 16+
-        if major > 15:
-            if cryptex_seed and cryptex_seed != "N/A":
-                cmd += ["-x", cryptex_seed]
-            if cryptex_nonce and cryptex_nonce != "N/A":
-                cmd += ["-t", cryptex_nonce]
+        if major and major >= 16:
+            cmd += ["-x", cryptex_seed, "-t", cryptex_nonce]
+
+        if build_id:
+            cmd += ["--buildid", build_id]
+        else:
+            cmd += ["-i", ios_version]
 
         if mode == "ota":
-            if not os.path.exists(manifest_file):
-                print("Skipping OTA: BuildManifest.plist not found in", device_folder)
+            if not os.path.exists(manifest):
+                print("Skipping OTA (missing BuildManifest.plist)")
                 continue
-            cmd += ["-m", manifest_file, "-o"]
+            cmd += ["-m", manifest, "-o"]
         elif mode == "update":
-            cmd += ["--buildid", build_number, "-u"]
+            cmd.append("-u")
         elif mode == "erase":
-            cmd += ["--buildid", build_number, "-E"]
+            cmd.append("-E")
 
-        if cellular and cellular.lower() in ("no", "false", "n"):
+        if cellular.lower() in ("false", "no", "n"):
             cmd.append("-b")
         elif bbsnum and bbsnum != "N/A":
             cmd += ["-c", bbsnum]
 
-        run_tsschecker(cmd)
+        subprocess.run(cmd)
 
-    print("\nDone. All files are in:", device_folder)
-
-# --------------------
+    print("\nDone.")
 
 if __name__ == "__main__":
     main()
