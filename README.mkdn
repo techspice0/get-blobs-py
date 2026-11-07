@@ -40,8 +40,8 @@ https://github.com/techspice0/get-blobs-py/blob/main/A8.mkdn
 
 From your computer, run:
 
-ssh mobile@<device-ip> "echo <password> | sudo -S x8A4 -xt"
-
+```ssh mobile@<device-ip> "echo <password> | sudo -S x8A4 -xt"
+```
 Remove the 0x from ONLY THE NONCE VALUE
 
 ------------------------------------------------------------------------
